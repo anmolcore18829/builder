@@ -72,7 +72,7 @@ export const createUserProject = async (req: Request, res: Response) => {
 
         // Enhance user prompt
         const promptEnhanceResponse = await openai.chat.completions.create({
-           model: 'google/gemma-3-27b-it:free',
+           model: 'openrouter.ai/google/gemma-3-27b-it',
             messages: [
                 {
                     role: 'system',
@@ -116,7 +116,7 @@ export const createUserProject = async (req: Request, res: Response) => {
 
         // Generate website code
         const codeGenerationResponse = await openai.chat.completions.create({
-            model: 'google/gemma-3-27b-it:free',
+            model: 'openrouter.ai/google/gemma-3-27b-it',
             messages: [
                 {
                     role: 'system',
