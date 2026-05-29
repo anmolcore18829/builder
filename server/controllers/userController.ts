@@ -116,7 +116,7 @@ export const createUserProject = async (req: Request, res: Response) => {
 
         // Generate website code
         const codeGenerationResponse = await openai.chat.completions.create({
-            model: 'kwaipilot/kat-coder-pro:free',
+            model: 'kwaipilot/kat-coder-pro-v2:free',
             messages: [
                 {
                     role: 'system',
