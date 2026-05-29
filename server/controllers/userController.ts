@@ -68,142 +68,168 @@ export const createUserProject = async (req: Request, res: Response) => {
             data: {credits: {decrement: 5}}
         })
 
+        // ✅ FIX 1: Response pehle bhejo, AI kaam background mein karo
         res.json({projectId: project.id})
 
-        // Enhance user prompt
-        const promptEnhanceResponse = await openai.chat.completions.create({
-           model: 'openrouter/auto',
-            messages: [
-                {
-                    role: 'system',
-                    content: `
-                    You are a prompt enhancement specialist. Take the user's website request and expand it into a detailed, comprehensive prompt that will help create the best possible website.
+        // === Background kaam — response ja chuka hai upar ===
+        try {
 
-                    Enhance this prompt by:
-                    1. Adding specific design details (layout, color scheme, typography)
-                    2. Specifying key sections and features
-                    3. Describing the user experience and interactions
-                    4. Including modern web design best practices
-                    5. Mentioning responsive design requirements
-                    6. Adding any missing but important elements
+            // Enhance user prompt
+            const promptEnhanceResponse = await openai.chat.completions.create({
+                model: 'openrouter/auto',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `
+                        You are a prompt enhancement specialist. Take the user's website request and expand it into a detailed, comprehensive prompt that will help create the best possible website.
 
-                    Return ONLY the enhanced prompt, nothing else. Make it detailed but concise (2-3 paragraphs max).`
-                },
-                {
-                    role: 'user',
-                    content: initial_prompt
+                        Enhance this prompt by:
+                        1. Adding specific design details (layout, color scheme, typography)
+                        2. Specifying key sections and features
+                        3. Describing the user experience and interactions
+                        4. Including modern web design best practices
+                        5. Mentioning responsive design requirements
+                        6. Adding any missing but important elements
+
+                        Return ONLY the enhanced prompt, nothing else. Make it detailed but concise (2-3 paragraphs max).`
+                    },
+                    {
+                        role: 'user',
+                        content: initial_prompt
+                    }
+                ]
+            })
+
+            const enhancedPrompt = promptEnhanceResponse.choices[0].message.content;
+
+            await prisma.conversation.create({
+                data: {
+                    role: 'assistant',
+                    content: `I've enhanced your prompt to: "${enhancedPrompt}"`,
+                    projectId: project.id
                 }
-            ]
-        })
+            })
 
-        const enhancedPrompt = promptEnhanceResponse.choices[0].message.content;
-
-        await prisma.conversation.create({
-            data: {
-                role: 'assistant',
-                content: `I've enhanced your prompt to: "${enhancedPrompt}"`,
-                projectId: project.id
-            }
-        })
-
-        await prisma.conversation.create({
-            data: {
-                role: 'assistant',
-                content: 'now generating your website...',
-                projectId: project.id
-            }
-        })
-
-        // Generate website code
-        const codeGenerationResponse = await openai.chat.completions.create({
-            model: 'openrouter/auto',
-            messages: [
-                {
-                    role: 'system',
-                     content: `
-                     You are an expert web developer. Create a complete, production-ready, single-page website based on this request: "${enhancedPrompt}"
-
-                    CRITICAL REQUIREMENTS:
-                    - You MUST output valid HTML ONLY. 
-                    - Use Tailwind CSS for ALL styling
-                    - Include this EXACT script in the <head>: <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-                    - Use Tailwind utility classes extensively for styling, animations, and responsiveness
-                    - Make it fully functional and interactive with JavaScript in <script> tag before closing </body>
-                    - Use modern, beautiful design with great UX using Tailwind classes
-                    - Make it responsive using Tailwind responsive classes (sm:, md:, lg:, xl:)
-                    - Use Tailwind animations and transitions (animate-*, transition-*)
-                    - Include all necessary meta tags
-                    - Use Google Fonts CDN if needed for custom fonts
-                    - Use placeholder images from https://placehold.co/600x400
-                    - Use Tailwind gradient classes for beautiful backgrounds
-                    - Make sure all buttons, cards, and components use Tailwind styling
-
-                    CRITICAL HARD RULES:
-                    1. You MUST put ALL output ONLY into message.content.
-                    2. You MUST NOT place anything in "reasoning", "analysis", "reasoning_details", or any hidden fields.
-                    3. You MUST NOT include internal thoughts, explanations, analysis, comments, or markdown.
-                    4. Do NOT include markdown, explanations, notes, or code fences.
-
-                    The HTML should be complete and ready to render as-is with Tailwind CSS.`
-                },
-                {
-                    role: 'user',
-                    content: enhancedPrompt || ''
+            await prisma.conversation.create({
+                data: {
+                    role: 'assistant',
+                    content: 'now generating your website...',
+                    projectId: project.id
                 }
-            ]
-        })
+            })
 
-        const code = codeGenerationResponse.choices[0].message.content || '';
+            // Generate website code
+            const codeGenerationResponse = await openai.chat.completions.create({
+                model: 'openrouter/auto',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `
+                        You are an expert web developer. Create a complete, production-ready, single-page website based on this request: "${enhancedPrompt}"
 
-        if(!code){
-             await prisma.conversation.create({
-            data: {
-                role: 'assistant',
-                content: "Unable to generate the code, please try again",
-                projectId: project.id
+                        CRITICAL REQUIREMENTS:
+                        - You MUST output valid HTML ONLY. 
+                        - Use Tailwind CSS for ALL styling
+                        - Include this EXACT script in the <head>: <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+                        - Use Tailwind utility classes extensively for styling, animations, and responsiveness
+                        - Make it fully functional and interactive with JavaScript in <script> tag before closing </body>
+                        - Use modern, beautiful design with great UX using Tailwind classes
+                        - Make it responsive using Tailwind responsive classes (sm:, md:, lg:, xl:)
+                        - Use Tailwind animations and transitions (animate-*, transition-*)
+                        - Include all necessary meta tags
+                        - Use Google Fonts CDN if needed for custom fonts
+                        - Use placeholder images from https://placehold.co/600x400
+                        - Use Tailwind gradient classes for beautiful backgrounds
+                        - Make sure all buttons, cards, and components use Tailwind styling
+
+                        CRITICAL HARD RULES:
+                        1. You MUST put ALL output ONLY into message.content.
+                        2. You MUST NOT place anything in "reasoning", "analysis", "reasoning_details", or any hidden fields.
+                        3. You MUST NOT include internal thoughts, explanations, analysis, comments, or markdown.
+                        4. Do NOT include markdown, explanations, notes, or code fences.
+
+                        The HTML should be complete and ready to render as-is with Tailwind CSS.`
+                    },
+                    {
+                        role: 'user',
+                        content: enhancedPrompt || ''
+                    }
+                ]
+            })
+
+            const code = codeGenerationResponse.choices[0].message.content || '';
+
+            if(!code){
+                await prisma.conversation.create({
+                    data: {
+                        role: 'assistant',
+                        content: "Unable to generate the code, please try again",
+                        projectId: project.id
+                    }
+                })
+                // ✅ FIX 2: Code nahi aaya toh credits wapas karo
+                await prisma.user.update({
+                    where: {id: userId},
+                    data: {credits: {increment: 5}}
+                })
+                return;
             }
-        })
-        await prisma.user.update({
-            where: {id: userId},
-            data: {credits: {increment: 5}}
-        })
-        return;
+
+            // ✅ cleanCode ek baar banao, do baar repeat mat karo
+            const cleanCode = code
+                .replace(/```[a-z]*\n?/gi, '')
+                .replace(/```$/g, '')
+                .trim();
+
+            // Create Version for the project
+            const version = await prisma.version.create({
+                data: {
+                    code: cleanCode,
+                    description: 'Initial version',
+                    projectId: project.id
+                }
+            })
+
+            await prisma.conversation.create({
+                data: {
+                    role: 'assistant',
+                    content: "I've created your website! You can now preview it and request any changes.",
+                    projectId: project.id
+                }
+            })
+
+            await prisma.websiteProject.update({
+                where: {id: project.id},
+                data: {
+                    current_code: cleanCode,
+                    current_version_index: version.id
+                }
+            })
+
+        } catch (bgError: any) {
+            // ✅ FIX 2: Background mein kuch bhi fail ho — credits wapas karo
+            console.log('Background generation error:', bgError);
+            await prisma.user.update({
+                where: {id: userId},
+                data: {credits: {increment: 5}}
+            })
+            await prisma.conversation.create({
+                data: {
+                    role: 'assistant',
+                    content: "Something went wrong while generating your website. Your credits have been refunded.",
+                    projectId: project.id
+                }
+            })
         }
 
-        // Create Version for the project
-        const version = await prisma.version.create({
-            data: {
-                code: code.replace(/```[a-z]*\n?/gi, '')
-                .replace(/```$/g, '')
-                .trim(),
-                description: 'Initial version',
-                projectId: project.id
-            }
-        })
-
-        await prisma.conversation.create({
-            data: {
-                role: 'assistant',
-                content: "I've created your website! You can now preview it and request any changes.",
-                projectId: project.id
-            }
-        })
-
-        await prisma.websiteProject.update({
-            where: {id: project.id},
-            data: {
-                current_code: code.replace(/```[a-z]*\n?/gi, '')
-                .replace(/```$/g, '')
-                .trim(),
-                current_version_index: version.id
-            }
-        })
-
     } catch (error : any) {
-        await prisma.user.update({
-            where: {id: userId},
-            data: {credits: {increment: 5}}
-        })
+        // ✅ FIX 3: userId undefined ho sakta hai — pehle check karo
+        if(userId){
+            await prisma.user.update({
+                where: {id: userId},
+                data: {credits: {increment: 5}}
+            })
+        }
         console.log(error);
         res.status(500).json({ message: error.message });
     }
@@ -219,15 +245,15 @@ export const getUserProject = async (req: Request, res: Response) => {
 
         const {projectId} = req.params;
 
-       const project = await prisma.websiteProject.findUnique({
-        where: {id: projectId, userId},
-        include: {
-            conversation: {
-                orderBy: {timestamp: 'asc'}
-            },
-            versions: {orderBy: {timestamp: 'asc'}}
-        }
-       })
+        const project = await prisma.websiteProject.findUnique({
+            where: {id: projectId, userId},
+            include: {
+                conversation: {
+                    orderBy: {timestamp: 'asc'}
+                },
+                versions: {orderBy: {timestamp: 'asc'}}
+            }
+        })
 
         res.json({project})
 
@@ -245,10 +271,10 @@ export const getUserProjects = async (req: Request, res: Response) => {
             return res.status(401).json({ message: 'Unauthorized' });
         }
 
-       const projects = await prisma.websiteProject.findMany({
-        where: {userId},
-        orderBy: {updatedAt: 'desc'}
-       })
+        const projects = await prisma.websiteProject.findMany({
+            where: {userId},
+            orderBy: {updatedAt: 'desc'}
+        })
 
         res.json({projects})
 
@@ -280,7 +306,7 @@ export const togglePublish = async (req: Request, res: Response) => {
             where: {id: projectId},
             data: {isPublished: !project.isPublished}
         })
-       
+
         res.json({message: project.isPublished ? 'Project Unpublished' : 'Project Published Successfully'})
 
     } catch (error : any) {
@@ -325,10 +351,10 @@ export const purchaseCredits = async (req: Request, res: Response) => {
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
         const session = await stripe.checkout.sessions.create({
-                success_url: `${origin}/loading`,
-                cancel_url: `${origin}`,
-                line_items: [
-                    {
+            success_url: `${origin}/loading`,
+            cancel_url: `${origin}`,
+            line_items: [
+                {
                     price_data: {
                         currency: 'usd',
                         product_data: {
@@ -337,15 +363,15 @@ export const purchaseCredits = async (req: Request, res: Response) => {
                         unit_amount: Math.floor(transaction.amount) * 100
                     },
                     quantity: 1
-                    },
-                ],
-                mode: 'payment',
-                metadata: {
-                    transactionId: transaction.id,
-                    appId: 'ai-site-builder'
                 },
-                expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // Expires in 30 minutes
-                });
+            ],
+            mode: 'payment',
+            metadata: {
+                transactionId: transaction.id,
+                appId: 'ai-site-builder'
+            },
+            expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
+        });
 
         res.json({payment_link: session.url})
 
