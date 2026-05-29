@@ -72,7 +72,7 @@ export const createUserProject = async (req: Request, res: Response) => {
 
         // Enhance user prompt
         const promptEnhanceResponse = await openai.chat.completions.create({
-           model: 'microsoft/mai-ds-r1:free',
+           model: 'google/gemma-4-31b:free',
             messages: [
                 {
                     role: 'system',
@@ -116,7 +116,7 @@ export const createUserProject = async (req: Request, res: Response) => {
 
         // Generate website code
         const codeGenerationResponse = await openai.chat.completions.create({
-            model: 'microsoft/mai-ds-r1:free',
+            model: 'google/gemma-4-31b:free',
             messages: [
                 {
                     role: 'system',
