@@ -36,7 +36,7 @@ export const createUserProject = async (req: Request, res: Response) => {
             where: {id: userId}
         })
 
-        if(user && user.credits < 5){
+        if(user && user.credits < 1){
             return res.status(403).json({ message: 'add credits to create more projects' });
         }
 
@@ -65,7 +65,7 @@ export const createUserProject = async (req: Request, res: Response) => {
 
         await prisma.user.update({
             where: {id: userId},
-            data: {credits: {decrement: 5}}
+            data: {credits: {decrement: 1}}
         })
 
         // ✅ FIX 1: Response pehle bhejo, AI kaam background mein karo
@@ -170,7 +170,7 @@ export const createUserProject = async (req: Request, res: Response) => {
                 // ✅ FIX 2: Code nahi aaya toh credits wapas karo
                 await prisma.user.update({
                     where: {id: userId},
-                    data: {credits: {increment: 5}}
+                    data: {credits: {increment: 1}}
                 })
                 return;
             }
@@ -211,7 +211,7 @@ export const createUserProject = async (req: Request, res: Response) => {
             console.log('Background generation error:', bgError);
             await prisma.user.update({
                 where: {id: userId},
-                data: {credits: {increment: 5}}
+                data: {credits: {increment: 1}}
             })
             await prisma.conversation.create({
                 data: {
@@ -227,7 +227,7 @@ export const createUserProject = async (req: Request, res: Response) => {
         if(userId){
             await prisma.user.update({
                 where: {id: userId},
-                data: {credits: {increment: 5}}
+                data: {credits: {increment: 1}}
             })
         }
         console.log(error);
